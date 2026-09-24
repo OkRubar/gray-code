@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Лабораторна робота №2 — Перетворення в ДДК (BCD)</title>
+    <title>Універсальний перетворювач кодів</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -32,7 +32,7 @@
         .container {
             background-color: var(--card-bg);
             width: 100%;
-            max-width: 750px;
+            max-width: 780px;
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -47,32 +47,40 @@
             color: #222;
         }
 
-        /* Панель введення */
-        .input-group {
+        /* Панель введення та налаштувань */
+        .controls-group {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
         }
 
-        .input-group label {
+        .control-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-item label {
             font-weight: bold;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
 
-        .input-group input {
-            padding: 8px 12px;
-            font-size: 1rem;
-            width: 110px;
+        .control-item input, .control-item select {
+            padding: 7px 10px;
+            font-size: 0.95rem;
             border: 1px solid #ccc;
             border-radius: 6px;
             outline: none;
-            text-align: center;
         }
 
-        .input-group button {
-            padding: 8px 16px;
+        .btn-calc {
+            padding: 8px 18px;
             font-size: 0.95rem;
             font-weight: bold;
             background-color: #007bff;
@@ -83,11 +91,11 @@
             transition: background 0.2s;
         }
 
-        .input-group button:hover {
+        .btn-calc:hover {
             background-color: #0056b3;
         }
 
-        .input-group button:disabled {
+        .btn-calc:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
         }
@@ -148,7 +156,7 @@
             font-size: 0.85rem;
             padding: 12px;
             border-radius: 8px;
-            height: 280px;
+            height: 300px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-all;
@@ -162,14 +170,18 @@
         .tag-gray { color: #dcdcaa; }
         .tag-error { color: #f44747; }
 
-        @media (max-width: 480px) {
+        @media (max-width: 580px) {
+            .controls-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
             .bit-label {
                 font-size: 1rem;
                 width: 20px;
             }
             .terminal {
                 font-size: 0.75rem;
-                height: 220px;
+                height: 240px;
             }
         }
     </style>
@@ -177,12 +189,24 @@
 <body>
 
 <div class="container">
-    <h2>Перетворення простого двійкового коду в ДДК (BCD 8421)</h2>
+    <h2>Перетворювач кодів (Грей / ДДК BCD)</h2>
 
-    <div class="input-group">
-        <label for="numInput">Десяткове число (0-1023):</label>
-        <input type="number" id="numInput" min="0" max="1023" value="573">
-        <button id="btnConvert" onclick="startConversion()">Розрахувати</button>
+    <div class="controls-group">
+        <div class="control-item">
+            <label for="numInput">Число (0-1023):</label>
+            <input type="number" id="numInput" min="0" max="1023" value="573" style="width: 90px;">
+        </div>
+
+        <div class="control-item">
+            <label for="modeSelect">Режим:</label>
+            <select id="modeSelect">
+                <option value="all">Повний розрахунок (Все підряд)</option>
+                <option value="gray">Тільки Код Грея & Декодування</option>
+                <option value="bcd">Тільки ДДК (BCD 8421) & Характеристики</option>
+            </select>
+        </div>
+
+        <button id="btnConvert" class="btn-calc" onclick="startConversion()">Розрахувати</button>
     </div>
 
     <div class="bits-container" id="bitsBoard"></div>
@@ -216,7 +240,7 @@
                 <td id="statNp">-</td>
             </tr>
             <tr>
-                <td>Кількість перевірочних (надлишкових) розрядів</td>
+                <td>Кількість перевірочних розрядів</td>
                 <td><i>r</i> = <i>n</i> - ⌈log<sub>2</sub> <i>N</i><sub>p</sub>⌉</td>
                 <td id="statR">-</td>
             </tr>
@@ -229,13 +253,14 @@
     </div>
 
     <div>
-        <div class="terminal-header">Термінал виконання та анімація зсуву з +3:</div>
+        <div class="terminal-header">Термінал виконання:</div>
         <div class="terminal" id="terminal"></div>
     </div>
 </div>
 
 <script>
     const numInput = document.getElementById('numInput');
+    const modeSelect = document.getElementById('modeSelect');
     const btnConvert = document.getElementById('btnConvert');
     const bitsBoard = document.getElementById('bitsBoard');
     const terminal = document.getElementById('terminal');
@@ -269,10 +294,14 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    function numToGray(n) {
+        return n ^ (n >> 1);
+    }
+
     function calculateCodeStats(num) {
         const strNum = num.toString();
         const numDigits = strNum.length;
-        const n = numDigits * 4; // Довжина ДДК
+        const n = numDigits * 4;
         const totalN = Math.pow(2, n);
         const np = Math.pow(10, numDigits);
         const infoBits = Math.ceil(Math.log2(np));
@@ -288,41 +317,37 @@
         statsBox.style.display = 'block';
     }
 
-    async function startConversion() {
-        const val = parseInt(numInput.value);
+    async function runGrayProcess(val, binStr) {
+        const grayVal = numToGray(val);
+        const grayStr = grayVal.toString(2).padStart(10, '0');
 
-        if (isNaN(val) || val < 0 || val > 1023) {
-            logToTerminal("[ПОМИЛКА] Введіть число від 0 до 1023!", "tag-error");
-            return;
-        }
+        logToTerminal("\n[РОЗДІЛ] КОД ГРЕЯ ТА ЙОГО ДЕКОДУВАННЯ:", "tag-info");
+        logToTerminal(`   Отриманий код Грея (G = B ⊕ (B >> 1)): ${grayStr}`, "tag-gray");
+        logToTerminal("   Покрокове декодування в двійковий код (зліва направо):");
 
-        btnConvert.disabled = true;
-
-        // Скидання панелі бітів
-        bitElements.forEach(el => {
-            el.textContent = '0';
-            el.classList.remove('active');
-        });
-
-        const binStr = val.toString(2).padStart(10, '0');
-
-        logToTerminal("\n==================================================", "tag-info");
-        logToTerminal(`--- РОЗРАХУНОК ТА ПЕРЕТВОРЕННЯ ДЛЯ ЧИСЛА: ${val} ---`, "tag-highlight");
-        
-        // 1. Анімація двійкового коду
-        logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
-        for (let i = 9; i >= 0; i--) {
+        let currentDecodedStr = "";
+        for (let i = 0; i < grayStr.length; i++) {
             await sleep(100);
-            bitElements[i].textContent = binStr[i];
-            bitElements[i].classList.add('active');
+            let nextBit;
+            if (i === 0) {
+                nextBit = grayStr[0];
+                logToTerminal(`   • Біт 0: B₀ = G₀ ➔ ${nextBit}`);
+            } else {
+                const prevB = parseInt(currentDecodedStr[i - 1]);
+                const currG = parseInt(grayStr[i]);
+                nextBit = (prevB ^ currG).toString();
+                logToTerminal(`   • Біт ${i}: B_${i} = B_${i-1} ⊕ G_${i} ➔ ${prevB} ⊕ ${currG} = ${nextBit}`);
+            }
+            currentDecodedStr += nextBit;
         }
-        logToTerminal(`   Результат: ${binStr}`, "tag-success");
 
-        // 2. Характеристики коду
+        const decodedVal = parseInt(currentDecodedStr, 2);
+        logToTerminal(`   Результат декодування коду Грея:     ${currentDecodedStr} (Десятичне: ${decodedVal})`, "tag-success");
+    }
+
+    async function runBcdProcess(val, binStr) {
+        logToTerminal("\n[РОЗДІЛ] ДВІЙКОВО-ДЕСЯТКОВИЙ КОД (BCD 8421):", "tag-info");
         calculateCodeStats(val);
-
-        // 3. Алгоритм Double Dabble (Зсув + 3)
-        logToTerminal("[2] АЛГОРИТМ ПЕРЕТВОРЕННЯ В ДДК (ЗСУВ З КОРЕКЦІЄЮ +3):", "tag-info");
         logToTerminal("   Правило: Якщо тетрада >= 5 (0101_2), додаємо +3 (0011_2) ПЕРЕД зсувом.", "tag-gray");
 
         let hundreds = 0, tens = 0, units = 0;
@@ -331,12 +356,10 @@
             const currentBit = parseInt(binStr[step]);
             let corrected = false;
 
-            // Перевірка та корекція ПЕРЕД зсувом
             if (hundreds >= 5) { hundreds += 3; corrected = true; }
             if (tens >= 5) { tens += 3; corrected = true; }
             if (units >= 5) { units += 3; corrected = true; }
 
-            // Зсув вліво на 1 біт
             hundreds = (hundreds << 1) & 0xF;
             if ((tens & 0x8) >> 3) hundreds |= 1;
 
@@ -357,12 +380,54 @@
             logStep += `Сотні: [${hStr}] Десятки: [${tStr}] Одиниці: [${uStr}]`;
 
             logToTerminal(logStep);
-            await sleep(200);
+            await sleep(120);
         }
 
         const bcdResult = `${hundreds.toString(2).padStart(4, '0')} ${tens.toString(2).padStart(4, '0')} ${units.toString(2).padStart(4, '0')}`;
         logToTerminal(`\n[РЕЗУЛЬТАТ] ДДК (BCD 8421) комбінація: ${bcdResult}`, "tag-success");
         logToTerminal(`[УСПІХ] Перевірка за десятковим значенням: ${hundreds}${tens}${units}`, "tag-highlight");
+    }
+
+    async function startConversion() {
+        const val = parseInt(numInput.value);
+        const mode = modeSelect.value;
+
+        if (isNaN(val) || val < 0 || val > 1023) {
+            logToTerminal("[ПОМИЛКА] Введіть число від 0 до 1023!", "tag-error");
+            return;
+        }
+
+        btnConvert.disabled = true;
+        statsBox.style.display = 'none';
+
+        // Скидання панелі бітів
+        bitElements.forEach(el => {
+            el.textContent = '0';
+            el.classList.remove('active');
+        });
+
+        const binStr = val.toString(2).padStart(10, '0');
+
+        logToTerminal("\n==================================================", "tag-info");
+        logToTerminal(`--- РОЗРАХУНОК ДЛЯ ЧИСЛА: ${val} (РЕЖИМ: ${modeSelect.options[modeSelect.selectedIndex].text}) ---`, "tag-highlight");
+        
+        // 1. Анімація прямого двійкового коду
+        logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
+        for (let i = 9; i >= 0; i--) {
+            await sleep(60);
+            bitElements[i].textContent = binStr[i];
+            bitElements[i].classList.add('active');
+        }
+        logToTerminal(`   Результат: ${binStr}`, "tag-success");
+
+        // 2. Виконання відповідно до обраного режиму
+        if (mode === 'gray' || mode === 'all') {
+            await runGrayProcess(val, binStr);
+        }
+
+        if (mode === 'bcd' || mode === 'all') {
+            await runBcdProcess(val, binStr);
+        }
 
         btnConvert.disabled = false;
     }
