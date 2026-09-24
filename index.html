@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Консоль-перетворювач коду Грея</title>
+    <title>Лабораторна робота №2 — Перетворення в ДДК (BCD)</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -32,7 +32,7 @@
         .container {
             background-color: var(--card-bg);
             width: 100%;
-            max-width: 650px;
+            max-width: 750px;
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -92,7 +92,7 @@
             cursor: not-allowed;
         }
 
-        /* Індикаторна панель бітів */
+        /* Панель двійкового коду */
         .bits-container {
             display: flex;
             justify-content: center;
@@ -105,15 +105,33 @@
 
         .bit-label {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: bold;
             color: red;
-            width: 32px;
+            width: 28px;
             text-align: center;
         }
 
         .bit-label.active {
             color: #00aa00;
+        }
+
+        /* Таблиця характеристик коду */
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            font-size: 0.85rem;
+        }
+
+        .stats-table th, .stats-table td {
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            text-align: left;
+        }
+
+        .stats-table th {
+            background-color: #e9ecef;
         }
 
         /* Термінал */
@@ -127,31 +145,30 @@
             background-color: var(--term-bg);
             color: #d4d4d4;
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             padding: 12px;
             border-radius: 8px;
-            height: 260px;
+            height: 280px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-all;
             line-height: 1.4;
         }
 
-        /* Кольори стилів терміналу */
+        /* Кольори для терміналу */
         .tag-info { color: #569cd6; }
         .tag-success { color: #4ec9b0; }
         .tag-highlight { color: #ce9178; font-weight: bold; }
         .tag-gray { color: #dcdcaa; }
         .tag-error { color: #f44747; }
 
-        /* Адаптивність під мобільні */
         @media (max-width: 480px) {
             .bit-label {
-                font-size: 1.1rem;
-                width: 22px;
+                font-size: 1rem;
+                width: 20px;
             }
             .terminal {
-                font-size: 0.8rem;
+                font-size: 0.75rem;
                 height: 220px;
             }
         }
@@ -160,20 +177,59 @@
 <body>
 
 <div class="container">
-    <h2>Консоль-перетворювач коду Грея</h2>
+    <h2>Перетворення простого двійкового коду в ДДК (BCD 8421)</h2>
 
     <div class="input-group">
-        <label for="numInput">Введіть число (0-1023):</label>
+        <label for="numInput">Десяткове число (0-1023):</label>
         <input type="number" id="numInput" min="0" max="1023" value="573">
-        <button id="btnConvert" onclick="startConversion()">Перетворити</button>
+        <button id="btnConvert" onclick="startConversion()">Розрахувати</button>
     </div>
 
-    <div class="bits-container" id="bitsBoard">
-        <!-- 10 бітових блоків генеруються скриптом -->
+    <div class="bits-container" id="bitsBoard"></div>
+
+    <div id="statsBox" style="display:none;">
+        <div class="terminal-header">Основні характеристики ДДК (8421) [За методичкою]:</div>
+        <table class="stats-table">
+            <tr>
+                <th>Характеристика</th>
+                <th>Позначення / Формула</th>
+                <th>Значення</th>
+            </tr>
+            <tr>
+                <td>Основа коду</td>
+                <td>$m$</td>
+                <td>2 (двійковий)</td>
+            </tr>
+            <tr>
+                <td>Довжина ДДК комбінації</td>
+                <td>$n = 4 \times \text{кількість цифр}$</td>
+                <td id="statN">-</td>
+            </tr>
+            <tr>
+                <td>Повне число комбінацій</td>
+                <td>$N = m^n = 2^n$</td>
+                <td id="statTotalN">-</td>
+            </tr>
+            <tr>
+                <td>Потужність коду (робочі комбінації)</td>
+                <td>$N_p = 10^{\text{кількість цифр}}$</td>
+                <td id="statNp">-</td>
+            </tr>
+            <tr>
+                <td>Кількість перевірочних (надлишкових) розрядів</td>
+                <td>$r = n - \lceil\log_2 N_p\rceil$</td>
+                <td id="statR">-</td>
+            </tr>
+            <tr>
+                <td>Відносна надлишковість коду</td>
+                <td>$R = 1 - \frac{\log_2 N_p}{n}$</td>
+                <td id="statRelR">-</td>
+            </tr>
+        </table>
     </div>
 
     <div>
-        <div class="terminal-header">Термінал виконання:</div>
+        <div class="terminal-header">Термінал виконання та анімація зсуву з $+3$:</div>
         <div class="terminal" id="terminal"></div>
     </div>
 </div>
@@ -183,10 +239,10 @@
     const btnConvert = document.getElementById('btnConvert');
     const bitsBoard = document.getElementById('bitsBoard');
     const terminal = document.getElementById('terminal');
+    const statsBox = document.getElementById('statsBox');
 
     let bitElements = [];
 
-    // Ініціалізація 10 бітових індикаторів
     function initBitsBoard() {
         bitsBoard.innerHTML = '';
         bitElements = [];
@@ -203,33 +259,46 @@
 
     function logToTerminal(text, tagClass = '') {
         const div = document.createElement('div');
-        if (tagClass) {
-            div.className = tagClass;
-        }
+        if (tagClass) div.className = tagClass;
         div.textContent = text;
         terminal.appendChild(div);
-        terminal.scrollTop = terminal.scrollHeight; // Автопрокрутка
-    }
-
-    function numToGray(n) {
-        return n ^ (n >> 1);
+        terminal.scrollTop = terminal.scrollHeight;
     }
 
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+    function calculateCodeStats(num) {
+        const strNum = num.toString();
+        const numDigits = strNum.length;
+        const n = numDigits * 4; // Довжина ДДК
+        const totalN = Math.pow(2, n);
+        const np = Math.pow(10, numDigits);
+        const infoBits = Math.ceil(Math.log2(np));
+        const r = n - infoBits;
+        const relR = (1 - (Math.log2(np) / n)).toFixed(4);
+
+        document.getElementById('statN').textContent = `${n} біт`;
+        document.getElementById('statTotalN').textContent = totalN;
+        document.getElementById('statNp').textContent = np;
+        document.getElementById('statR').textContent = `${r} біт`;
+        document.getElementById('statRelR').textContent = `${relR} (${(relR * 100).toFixed(2)}%)`;
+
+        statsBox.style.display = 'block';
+    }
+
     async function startConversion() {
         const val = parseInt(numInput.value);
 
         if (isNaN(val) || val < 0 || val > 1023) {
-            logToTerminal("[ПОМИЛКА] Введіть число в діапазоні від 0 до 1023!", "tag-error");
+            logToTerminal("[ПОМИЛКА] Введіть число від 0 до 1023!", "tag-error");
             return;
         }
 
         btnConvert.disabled = true;
 
-        // Скидаємо графічні індикатори
+        // Скидання панелі бітів
         bitElements.forEach(el => {
             el.textContent = '0';
             el.classList.remove('active');
@@ -238,47 +307,63 @@
         const binStr = val.toString(2).padStart(10, '0');
 
         logToTerminal("\n==================================================", "tag-info");
-        logToTerminal(`--- НОВИЙ РОЗРАХУНОК ДЛЯ ЧИСЛА: ${val} ---`, "tag-highlight");
-        logToTerminal("[1] ГЕНЕРАЦІЯ ДВІЙКОВОГО КОДУ...", "tag-info");
-
-        // Анімація двійкового коду справа наліво
+        logToTerminal(`--- РОЗРАХУНОК ТА ПЕРЕТВОРЕННЯ ДЛЯ ЧИСЛА: ${val} ---`, "tag-highlight");
+        
+        // 1. Анімація двійкового коду
+        logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
         for (let i = 9; i >= 0; i--) {
-            await sleep(150);
+            await sleep(100);
             bitElements[i].textContent = binStr[i];
             bitElements[i].classList.add('active');
         }
+        logToTerminal(`   Результат: ${binStr}`, "tag-success");
 
-        logToTerminal(`   Прямий двійковий код (10 біт): ${binStr}`, "tag-success");
+        // 2. Характеристики коду
+        calculateCodeStats(val);
 
-        // Крок 2: Код Грея
-        const grayVal = numToGray(val);
-        const grayStr = grayVal.toString(2).padStart(10, '0');
+        // 3. Алгоритм Double Dabble (Зсув + 3)
+        logToTerminal("[2] АЛГОРИТМ ПЕРЕТВОРЕННЯ В ДДК (ЗСУВ З КОРЕКЦІЄЮ +3):", "tag-info");
+        logToTerminal("   Правило: Якщо тетрада >= 5 (0101_2), додаємо +3 (0011_2) перед зсувом.", "tag-gray");
 
-        logToTerminal("[2] ГЕНЕРАЦІЯ КОДУ ГРЕЯ (G = B ⊕ (B >> 1))...", "tag-info");
-        logToTerminal(`   Отриманий код Грея:           ${grayStr}`, "tag-gray");
+        let hundreds = 0, tens = 0, units = 0;
 
-        // Крок 3: Декодування
-        logToTerminal("[3] ДЕКОДУВАННЯ З КОДУ ГРЕЯ В ДВІЙКОВИЙ (ЗЛІВА НАПРАВО):", "tag-info");
+        for (let step = 0; step < 10; step++) {
+            const currentBit = parseInt(binStr[step]);
+            
+            // Перевірка та корекція перед зсувом
+            let corrected = false;
+            let logStep = `   Крок ${step + 1}/10 (Біт: ${currentBit}): `;
 
-        let currentDecodedStr = "";
-        for (let i = 0; i < grayStr.length; i++) {
-            await sleep(250);
-            let nextBit;
-            if (i === 0) {
-                nextBit = grayStr[0];
-                logToTerminal(`   • Біт 0: B₀ = G₀ ➔ ${nextBit}`);
-            } else {
-                const prevB = parseInt(currentDecodedStr[i - 1]);
-                const currG = parseInt(grayStr[i]);
-                nextBit = (prevB ^ currG).toString();
-                logToTerminal(`   • Біт ${i}: B_${i} = B_${i-1} ⊕ G_${i} ➔ ${prevB} ⊕ ${currG} = ${nextBit}`);
+            if (hundreds >= 5) { hundreds += 3; corrected = true; }
+            if (tens >= 5) { tens += 3; corrected = true; }
+            if (units >= 5) { units += 3; corrected = true; }
+
+            if (corrected) {
+                logStep += `[Корекція +3] `;
             }
-            currentDecodedStr += nextBit;
+
+            // Зсув вліво на 1 біт
+            hundreds = (hundreds << 1) & 0xF;
+            if ((tens & 0x8) >> 3) hundreds |= 1;
+
+            tens = (tens << 1) & 0xF;
+            if ((units & 0x8) >> 3) tens |= 1;
+
+            units = (units << 1) & 0xF;
+            if (currentBit) units |= 1;
+
+            const hStr = hundreds.toString(2).padStart(4, '0');
+            const tStr = tens.toString(2).padStart(4, '0');
+            const uStr = units.toString(2).padStart(4, '0');
+
+            logStep += `Сотні: [${hStr}] Десятки: [${tStr}] Одиниці: [${uStr}]`;
+            logToTerminal(logStep);
+            await sleep(200);
         }
 
-        const decodedVal = parseInt(currentDecodedStr, 2);
-        logToTerminal(`   Результат декодування:        ${currentDecodedStr} (Десятичне: ${decodedVal})`, "tag-success");
-        logToTerminal("   [УСПІХ] Декодування завершено повністю!", "tag-highlight");
+        const bcdResult = `${hundreds.toString(2).padStart(4, '0')} ${tens.toString(2).padStart(4, '0')} ${units.toString(2).padStart(4, '0')}`;
+        logToTerminal(`\n[РЕЗУЛЬТАТ] ДДК (BCD 8421) комбінація: ${bcdResult}`, "tag-success");
+        logToTerminal(`[УСПІХ] Число в ДДК форматі відповідає десятковому: ${hundreds}${tens}${units}`, "tag-highlight");
 
         btnConvert.disabled = false;
     }
