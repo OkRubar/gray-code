@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Консоль-перетворювач коду Грея</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --term-bg: #1e1e1e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            width: 100%;
+            max-width: 650px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #222;
+        }
+
+        /* Панель введення */
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+
+        .input-group input {
+            padding: 8px 12px;
+            font-size: 1rem;
+            width: 110px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+            text-align: center;
+        }
+
+        .input-group button {
+            padding: 8px 16px;
+            font-size: 0.95rem;
+            font-weight: bold;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .input-group button:hover {
+            background-color: #0056b3;
+        }
+
+        .input-group button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* Індикаторна панель бітів */
+        .bits-container {
+            display: flex;
+            justify-content: center;
+            gap: 4px;
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .bit-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: red;
+            width: 32px;
+            text-align: center;
+        }
+
+        .bit-label.active {
+            color: #00aa00;
+        }
+
+        /* Термінал */
+        .terminal-header {
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .terminal {
+            background-color: var(--term-bg);
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.9rem;
+            padding: 12px;
+            border-radius: 8px;
+            height: 260px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.4;
+        }
+
+        /* Кольори стилів терміналу */
+        .tag-info { color: #569cd6; }
+        .tag-success { color: #4ec9b0; }
+        .tag-highlight { color: #ce9178; font-weight: bold; }
+        .tag-gray { color: #dcdcaa; }
+        .tag-error { color: #f44747; }
+
+        /* Адаптивність під мобільні */
+        @media (max-width: 480px) {
+            .bit-label {
+                font-size: 1.1rem;
+                width: 22px;
+            }
+            .terminal {
+                font-size: 0.8rem;
+                height: 220px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Консоль-перетворювач коду Грея</h2>
+
+    <div class="input-group">
+        <label for="numInput">Введіть число (0-1023):</label>
+        <input type="number" id="numInput" min="0" max="1023" value="573">
+        <button id="btnConvert" onclick="startConversion()">Перетворити</button>
+    </div>
+
+    <div class="bits-container" id="bitsBoard">
+        <!-- 10 бітових блоків генеруються скриптом -->
+    </div>
+
+    <div>
+        <div class="terminal-header">Термінал виконання:</div>
+        <div class="terminal" id="terminal"></div>
+    </div>
+</div>
+
+<script>
+    const numInput = document.getElementById('numInput');
+    const btnConvert = document.getElementById('btnConvert');
+    const bitsBoard = document.getElementById('bitsBoard');
+    const terminal = document.getElementById('terminal');
+
+    let bitElements = [];
+
+    // Ініціалізація 10 бітових індикаторів
+    function initBitsBoard() {
+        bitsBoard.innerHTML = '';
+        bitElements = [];
+        for (let i = 0; i < 10; i++) {
+            const span = document.createElement('span');
+            span.className = 'bit-label';
+            span.textContent = '0';
+            bitsBoard.appendChild(span);
+            bitElements.push(span);
+        }
+    }
+
+    initBitsBoard();
+
+    function logToTerminal(text, tagClass = '') {
+        const div = document.createElement('div');
+        if (tagClass) {
+            div.className = tagClass;
+        }
+        div.textContent = text;
+        terminal.appendChild(div);
+        terminal.scrollTop = terminal.scrollHeight; // Автопрокрутка
+    }
+
+    function numToGray(n) {
+        return n ^ (n >> 1);
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function startConversion() {
+        const val = parseInt(numInput.value);
+
+        if (isNaN(val) || val < 0 || val > 1023) {
+            logToTerminal("[ПОМИЛКА] Введіть число в діапазоні від 0 до 1023!", "tag-error");
+            return;
+        }
+
+        btnConvert.disabled = true;
+
+        // Скидаємо графічні індикатори
+        bitElements.forEach(el => {
+            el.textContent = '0';
+            el.classList.remove('active');
+        });
+
+        const binStr = val.toString(2).padStart(10, '0');
+
+        logToTerminal("\n==================================================", "tag-info");
+        logToTerminal(`--- НОВИЙ РОЗРАХУНОК ДЛЯ ЧИСЛА: ${val} ---`, "tag-highlight");
+        logToTerminal("[1] ГЕНЕРАЦІЯ ДВІЙКОВОГО КОДУ...", "tag-info");
+
+        // Анімація двійкового коду справа наліво
+        for (let i = 9; i >= 0; i--) {
+            await sleep(150);
+            bitElements[i].textContent = binStr[i];
+            bitElements[i].classList.add('active');
+        }
+
+        logToTerminal(`   Прямий двійковий код (10 біт): ${binStr}`, "tag-success");
+
+        // Крок 2: Код Грея
+        const grayVal = numToGray(val);
+        const grayStr = grayVal.toString(2).padStart(10, '0');
+
+        logToTerminal("[2] ГЕНЕРАЦІЯ КОДУ ГРЕЯ (G = B ⊕ (B >> 1))...", "tag-info");
+        logToTerminal(`   Отриманий код Грея:           ${grayStr}`, "tag-gray");
+
+        // Крок 3: Декодування
+        logToTerminal("[3] ДЕКОДУВАННЯ З КОДУ ГРЕЯ В ДВІЙКОВИЙ (ЗЛІВА НАПРАВО):", "tag-info");
+
+        let currentDecodedStr = "";
+        for (let i = 0; i < grayStr.length; i++) {
+            await sleep(250);
+            let nextBit;
+            if (i === 0) {
+                nextBit = grayStr[0];
+                logToTerminal(`   • Біт 0: B₀ = G₀ ➔ ${nextBit}`);
+            } else {
+                const prevB = parseInt(currentDecodedStr[i - 1]);
+                const currG = parseInt(grayStr[i]);
+                nextBit = (prevB ^ currG).toString();
+                logToTerminal(`   • Біт ${i}: B_${i} = B_${i-1} ⊕ G_${i} ➔ ${prevB} ⊕ ${currG} = ${nextBit}`);
+            }
+            currentDecodedStr += nextBit;
+        }
+
+        const decodedVal = parseInt(currentDecodedStr, 2);
+        logToTerminal(`   Результат декодування:        ${currentDecodedStr} (Десятичне: ${decodedVal})`, "tag-success");
+        logToTerminal("   [УСПІХ] Декодування завершено повністю!", "tag-highlight");
+
+        btnConvert.disabled = false;
+    }
+</script>
+
+</body>
+</html>
