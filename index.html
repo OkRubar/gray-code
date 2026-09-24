@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Універсальний перетворювач кодів</title>
+    <title>Універсальний перетворювач кодів (Грей, ДДК, Парність)</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -32,7 +32,7 @@
         .container {
             background-color: var(--card-bg);
             width: 100%;
-            max-width: 780px;
+            max-width: 800px;
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -189,20 +189,32 @@
 <body>
 
 <div class="container">
-    <h2>Перетворювач кодів (Грей / ДДК BCD)</h2>
+    <h2>Перетворювач кодів (Грей / ДДК / Парність)</h2>
 
     <div class="controls-group">
         <div class="control-item">
             <label for="numInput">Число (0-1023):</label>
-            <input type="number" id="numInput" min="0" max="1023" value="573" style="width: 90px;">
+            <input type="number" id="numInput" min="0" max="1023" value="573" style="width: 85px;">
         </div>
 
         <div class="control-item">
             <label for="modeSelect">Режим:</label>
-            <select id="modeSelect">
-                <option value="all">Повний розрахунок (Все підряд)</option>
-                <option value="gray">Тільки Код Грея & Декодування</option>
-                <option value="bcd">Тільки ДДК (BCD 8421) & Характеристики</option>
+            <select id="modeSelect" onchange="toggleErrorSelector()">
+                <option value="all">Повний розрахунок (Усі лабораторії)</option>
+                <option value="gray">Лаб №1: Код Грея & Декодування</option>
+                <option value="bcd">Лаб №2: ДДК (BCD 8421) & Характеристики</option>
+                <option value="parity">Лаб №3: Код з перевіркою на парність</option>
+            </select>
+        </div>
+
+        <div class="control-item" id="errorOptionBox" style="display: none;">
+            <label for="errorBitSelect">Помилка в каналі:</label>
+            <select id="errorBitSelect">
+                <option value="-1">Без помилок</option>
+                <option value="0">Спотворити біт 0 (MSB)</option>
+                <option value="3">Спотворити біт 3</option>
+                <option value="7">Спотворити біт 7</option>
+                <option value="10">Спотворити біт парності (p)</option>
             </select>
         </div>
 
@@ -212,44 +224,8 @@
     <div class="bits-container" id="bitsBoard"></div>
 
     <div id="statsBox" style="display:none;">
-        <div class="terminal-header">Основні характеристики ДДК (8421) [За методичкою]:</div>
-        <table class="stats-table">
-            <tr>
-                <th>Характеристика</th>
-                <th>Позначення / Формула</th>
-                <th>Значення</th>
-            </tr>
-            <tr>
-                <td>Основа коду</td>
-                <td><i>m</i></td>
-                <td>2 (двійковий)</td>
-            </tr>
-            <tr>
-                <td>Довжина ДДК комбінації</td>
-                <td><i>n</i> = 4 × (кількість цифр)</td>
-                <td id="statN">-</td>
-            </tr>
-            <tr>
-                <td>Повне число комбінацій</td>
-                <td><i>N</i> = <i>m</i><sup><i>n</i></sup> = 2<sup><i>n</i></sup></td>
-                <td id="statTotalN">-</td>
-            </tr>
-            <tr>
-                <td>Потужність коду (робочі комбінації)</td>
-                <td><i>N</i><sub>p</sub> = 10<sup>(кількість цифр)</sup></td>
-                <td id="statNp">-</td>
-            </tr>
-            <tr>
-                <td>Кількість перевірочних розрядів</td>
-                <td><i>r</i> = <i>n</i> - ⌈log<sub>2</sub> <i>N</i><sub>p</sub>⌉</td>
-                <td id="statR">-</td>
-            </tr>
-            <tr>
-                <td>Відносна надлишковість коду</td>
-                <td><i>R</i> = 1 - (log<sub>2</sub> <i>N</i><sub>p</sub> / <i>n</i>)</td>
-                <td id="statRelR">-</td>
-            </tr>
-        </table>
+        <div class="terminal-header" id="statsHeader">Основні характеристики коду:</div>
+        <table class="stats-table" id="statsTable"></table>
     </div>
 
     <div>
@@ -261,10 +237,14 @@
 <script>
     const numInput = document.getElementById('numInput');
     const modeSelect = document.getElementById('modeSelect');
+    const errorOptionBox = document.getElementById('errorOptionBox');
+    const errorBitSelect = document.getElementById('errorBitSelect');
     const btnConvert = document.getElementById('btnConvert');
     const bitsBoard = document.getElementById('bitsBoard');
     const terminal = document.getElementById('terminal');
     const statsBox = document.getElementById('statsBox');
+    const statsTable = document.getElementById('statsTable');
+    const statsHeader = document.getElementById('statsHeader');
 
     let bitElements = [];
 
@@ -282,6 +262,15 @@
 
     initBitsBoard();
 
+    function toggleErrorSelector() {
+        const mode = modeSelect.value;
+        if (mode === 'parity' || mode === 'all') {
+            errorOptionBox.style.display = 'flex';
+        } else {
+            errorOptionBox.style.display = 'none';
+        }
+    }
+
     function logToTerminal(text, tagClass = '') {
         const div = document.createElement('div');
         if (tagClass) div.className = tagClass;
@@ -298,7 +287,8 @@
         return n ^ (n >> 1);
     }
 
-    function calculateCodeStats(num) {
+    // ДДК (Лаб 2) характеристики
+    function renderBcdStats(num) {
         const strNum = num.toString();
         const numDigits = strNum.length;
         const n = numDigits * 4;
@@ -308,12 +298,39 @@
         const r = n - infoBits;
         const relR = (1 - (Math.log2(np) / n)).toFixed(4);
 
-        document.getElementById('statN').textContent = `${n} біт`;
-        document.getElementById('statTotalN').textContent = totalN;
-        document.getElementById('statNp').textContent = np;
-        document.getElementById('statR').textContent = `${r} біт`;
-        document.getElementById('statRelR').textContent = `${relR} (${(relR * 100).toFixed(2)}%)`;
+        statsHeader.textContent = "Основні характеристики ДДК (8421) [За методичкою №2]:";
+        statsTable.innerHTML = `
+            <tr><th>Характеристика</th><th>Формула</th><th>Значення</th></tr>
+            <tr><td>Основа коду</td><td><i>m</i></td><td>2 (двійковий)</td></tr>
+            <tr><td>Довжина ДДК комбінації</td><td><i>n</i> = 4 × цифри</td><td>${n} біт</td></tr>
+            <tr><td>Повне число комбінацій</td><td><i>N</i> = 2<sup><i>n</i></sup></td><td>${totalN}</td></tr>
+            <tr><td>Потужність коду (робочі)</td><td><i>N</i><sub>p</sub> = 10<sup>цифри</sup></td><td>${np}</td></tr>
+            <tr><td>Кількість перевірочних розрядів</td><td><i>r</i> = <i>n</i> - ⌈log<sub>2</sub> <i>N</i><sub>p</sub>⌉</td><td>${r} біт</td></tr>
+            <tr><td>Відносна надлишковість</td><td><i>R</i> = 1 - (log<sub>2</sub> <i>N</i><sub>p</sub> / <i>n</i>)</td><td>${relR} (${(relR * 100).toFixed(2)}%)</td></tr>
+        `;
+        statsBox.style.display = 'block';
+    }
 
+    // Код з перевіркою на парність (Лаб 3) характеристики
+    function renderParityStats(k = 10) {
+        const r = 1;
+        const n = k + r;
+        const totalN = Math.pow(2, n);
+        const np = Math.pow(2, k);
+        const relR = (r / n).toFixed(4);
+        const codeDist = 2;
+
+        statsHeader.textContent = "Основні характеристики коду з однією перевіркою на парність [За методичкою №3]:";
+        statsTable.innerHTML = `
+            <tr><th>Характеристика</th><th>Формула</th><th>Значення</th></tr>
+            <tr><td>Інформаційних розрядів</td><td><i>k</i></td><td>${k} біт</td></tr>
+            <tr><td>Перевірочних розрядів</td><td><i>r</i></td><td>${r} біт</td></tr>
+            <tr><td>Загальна довжина коду</td><td><i>n</i> = <i>k</i> + <i>r</i></td><td>${n} біт</td></tr>
+            <tr><td>Повне число комбінацій</td><td><i>N</i> = 2<sup><i>n</i></sup></td><td>${totalN}</td></tr>
+            <tr><td>Потужність коду (робочі)</td><td><i>N</i><sub>p</sub> = 2<sup><i>k</i></sup></td><td>${np}</td></tr>
+            <tr><td>Мінімальна кодова відстань</td><td><i>d</i></td><td>${codeDist} (виявляє 1-кратні помилки)</td></tr>
+            <tr><td>Надлишковість коду</td><td><i>R</i> = <i>r</i> / <i>n</i></td><td>${relR} (${(relR * 100).toFixed(2)}%)</td></tr>
+        `;
         statsBox.style.display = 'block';
     }
 
@@ -321,13 +338,13 @@
         const grayVal = numToGray(val);
         const grayStr = grayVal.toString(2).padStart(10, '0');
 
-        logToTerminal("\n[РОЗДІЛ] КОД ГРЕЯ ТА ЙОГО ДЕКОДУВАННЯ:", "tag-info");
+        logToTerminal("\n[ЛАБ №1] КОД ГРЕЯ ТА ЙОГО ДЕКОДУВАННЯ:", "tag-info");
         logToTerminal(`   Отриманий код Грея (G = B ⊕ (B >> 1)): ${grayStr}`, "tag-gray");
         logToTerminal("   Покрокове декодування в двійковий код (зліва направо):");
 
         let currentDecodedStr = "";
         for (let i = 0; i < grayStr.length; i++) {
-            await sleep(100);
+            await sleep(80);
             let nextBit;
             if (i === 0) {
                 nextBit = grayStr[0];
@@ -346,8 +363,8 @@
     }
 
     async function runBcdProcess(val, binStr) {
-        logToTerminal("\n[РОЗДІЛ] ДВІЙКОВО-ДЕСЯТКОВИЙ КОД (BCD 8421):", "tag-info");
-        calculateCodeStats(val);
+        logToTerminal("\n[ЛАБ №2] ДВІЙКОВО-ДЕСЯТКОВИЙ КОД (BCD 8421):", "tag-info");
+        renderBcdStats(val);
         logToTerminal("   Правило: Якщо тетрада >= 5 (0101_2), додаємо +3 (0011_2) ПЕРЕД зсувом.", "tag-gray");
 
         let hundreds = 0, tens = 0, units = 0;
@@ -380,12 +397,70 @@
             logStep += `Сотні: [${hStr}] Десятки: [${tStr}] Одиниці: [${uStr}]`;
 
             logToTerminal(logStep);
-            await sleep(120);
+            await sleep(100);
         }
 
         const bcdResult = `${hundreds.toString(2).padStart(4, '0')} ${tens.toString(2).padStart(4, '0')} ${units.toString(2).padStart(4, '0')}`;
         logToTerminal(`\n[РЕЗУЛЬТАТ] ДДК (BCD 8421) комбінація: ${bcdResult}`, "tag-success");
         logToTerminal(`[УСПІХ] Перевірка за десятковим значенням: ${hundreds}${tens}${units}`, "tag-highlight");
+    }
+
+    async function runParityProcess(val, binStr) {
+        logToTerminal("\n[ЛАБ №3] КОД З ОДНІЄЮ ПЕРЕВІРКОЮ НА ПАРНІСТЬ:", "tag-info");
+        renderParityStats(10);
+
+        // 1. Кодування
+        let onesCount = 0;
+        for (let char of binStr) {
+            if (char === '1') onesCount++;
+        }
+
+        // Перевірочний біт p = XOR усіх бітів
+        const parityBit = onesCount % 2 === 0 ? 0 : 1;
+        const fullCodeStr = binStr + parityBit;
+
+        logToTerminal(`   1. Кодування на передавачі:`, "tag-gray");
+        logToTerminal(`      Інформаційні біти (k=10): ${binStr} (Кількість одиниць: ${onesCount})`);
+        logToTerminal(`      Обчислення біта парності p = b₀ ⊕ b₁ ⊕ ... ⊕ b₉ ➔ ${parityBit}`);
+        logToTerminal(`      Передана комбінація (n=11): ${binStr}[${parityBit}]`, "tag-success");
+
+        await sleep(200);
+
+        // 2. Симуляція каналу зв'язку
+        const errorIndex = parseInt(errorBitSelect.value);
+        let receivedCodeArr = fullCodeStr.split('');
+        
+        logToTerminal(`   2. Передача через канал зв'язку:`, "tag-gray");
+        if (errorIndex >= 0) {
+            receivedCodeArr[errorIndex] = receivedCodeArr[errorIndex] === '0' ? '1' : '0';
+            logToTerminal(`      [УВАГА] Введено штучну помилку у біт ${errorIndex}!`, "tag-error");
+        } else {
+            logToTerminal(`      Передача без спотворень (чистий канал).`, "tag-success");
+        }
+
+        const receivedCodeStr = receivedCodeArr.join('');
+        const recBin = receivedCodeStr.substring(0, 10);
+        const recParity = parseInt(receivedCodeStr.substring(10, 11));
+
+        // 3. Декодування та перевірка синдрому
+        logToTerminal(`   3. Декодування та контроль на приймачі:`, "tag-gray");
+        logToTerminal(`      Прийнята комбінація: ${recBin}[${recParity}]`);
+
+        let recOnes = 0;
+        for (let char of recBin) {
+            if (char === '1') recOnes++;
+        }
+        const calcRecParity = recOnes % 2 === 0 ? 0 : 1;
+        const syndrome = recParity ^ calcRecParity; // Синдром S = p' ⊕ p''
+
+        logToTerminal(`      Обчислено p'' для прийнятих даних: ${calcRecParity}`);
+        logToTerminal(`      Перевірка синдрому S = p' ⊕ p'' = ${recParity} ⊕ ${calcRecParity} = ${syndrome}`);
+
+        if (syndrome === 0) {
+            logToTerminal(`   [РЕЗУЛЬТАТ] S = 0 ➔ Помилок не виявлено (паритет збережено).`, "tag-success");
+        } else {
+            logToTerminal(`   [ПОМИЛКА] S = 1 ➔ Порушення парності! Виявлено спотворення в каналі!`, "tag-error");
+        }
     }
 
     async function startConversion() {
@@ -414,19 +489,23 @@
         // 1. Анімація прямого двійкового коду
         logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
         for (let i = 9; i >= 0; i--) {
-            await sleep(60);
+            await sleep(50);
             bitElements[i].textContent = binStr[i];
             bitElements[i].classList.add('active');
         }
         logToTerminal(`   Результат: ${binStr}`, "tag-success");
 
-        // 2. Виконання відповідно до обраного режиму
+        // 2. Виконання обраного режиму
         if (mode === 'gray' || mode === 'all') {
             await runGrayProcess(val, binStr);
         }
 
         if (mode === 'bcd' || mode === 'all') {
             await runBcdProcess(val, binStr);
+        }
+
+        if (mode === 'parity' || mode === 'all') {
+            await runParityProcess(val, binStr);
         }
 
         btnConvert.disabled = false;
