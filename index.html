@@ -197,39 +197,39 @@
             </tr>
             <tr>
                 <td>Основа коду</td>
-                <td>$m$</td>
+                <td><i>m</i></td>
                 <td>2 (двійковий)</td>
             </tr>
             <tr>
                 <td>Довжина ДДК комбінації</td>
-                <td>$n = 4 \times \text{кількість цифр}$</td>
+                <td><i>n</i> = 4 × (кількість цифр)</td>
                 <td id="statN">-</td>
             </tr>
             <tr>
                 <td>Повне число комбінацій</td>
-                <td>$N = m^n = 2^n$</td>
+                <td><i>N</i> = <i>m</i><sup><i>n</i></sup> = 2<sup><i>n</i></sup></td>
                 <td id="statTotalN">-</td>
             </tr>
             <tr>
                 <td>Потужність коду (робочі комбінації)</td>
-                <td>$N_p = 10^{\text{кількість цифр}}$</td>
+                <td><i>N</i><sub>p</sub> = 10<sup>(кількість цифр)</sup></td>
                 <td id="statNp">-</td>
             </tr>
             <tr>
                 <td>Кількість перевірочних (надлишкових) розрядів</td>
-                <td>$r = n - \lceil\log_2 N_p\rceil$</td>
+                <td><i>r</i> = <i>n</i> - ⌈log<sub>2</sub> <i>N</i><sub>p</sub>⌉</td>
                 <td id="statR">-</td>
             </tr>
             <tr>
                 <td>Відносна надлишковість коду</td>
-                <td>$R = 1 - \frac{\log_2 N_p}{n}$</td>
+                <td><i>R</i> = 1 - (log<sub>2</sub> <i>N</i><sub>p</sub> / <i>n</i>)</td>
                 <td id="statRelR">-</td>
             </tr>
         </table>
     </div>
 
     <div>
-        <div class="terminal-header">Термінал виконання та анімація зсуву з $+3$:</div>
+        <div class="terminal-header">Термінал виконання та анімація зсуву з +3:</div>
         <div class="terminal" id="terminal"></div>
     </div>
 </div>
@@ -323,24 +323,18 @@
 
         // 3. Алгоритм Double Dabble (Зсув + 3)
         logToTerminal("[2] АЛГОРИТМ ПЕРЕТВОРЕННЯ В ДДК (ЗСУВ З КОРЕКЦІЄЮ +3):", "tag-info");
-        logToTerminal("   Правило: Якщо тетрада >= 5 (0101_2), додаємо +3 (0011_2) перед зсувом.", "tag-gray");
+        logToTerminal("   Правило: Якщо тетрада >= 5 (0101_2), додаємо +3 (0011_2) ПЕРЕД зсувом.", "tag-gray");
 
         let hundreds = 0, tens = 0, units = 0;
 
         for (let step = 0; step < 10; step++) {
             const currentBit = parseInt(binStr[step]);
-            
-            // Перевірка та корекція перед зсувом
             let corrected = false;
-            let logStep = `   Крок ${step + 1}/10 (Біт: ${currentBit}): `;
 
+            // Перевірка та корекція ПЕРЕД зсувом
             if (hundreds >= 5) { hundreds += 3; corrected = true; }
             if (tens >= 5) { tens += 3; corrected = true; }
             if (units >= 5) { units += 3; corrected = true; }
-
-            if (corrected) {
-                logStep += `[Корекція +3] `;
-            }
 
             // Зсув вліво на 1 біт
             hundreds = (hundreds << 1) & 0xF;
@@ -356,14 +350,19 @@
             const tStr = tens.toString(2).padStart(4, '0');
             const uStr = units.toString(2).padStart(4, '0');
 
+            let logStep = `   Крок ${step + 1}/10 (Біт: ${currentBit}): `;
+            if (corrected) {
+                logStep += `[Корекція +3] `;
+            }
             logStep += `Сотні: [${hStr}] Десятки: [${tStr}] Одиниці: [${uStr}]`;
+
             logToTerminal(logStep);
             await sleep(200);
         }
 
         const bcdResult = `${hundreds.toString(2).padStart(4, '0')} ${tens.toString(2).padStart(4, '0')} ${units.toString(2).padStart(4, '0')}`;
         logToTerminal(`\n[РЕЗУЛЬТАТ] ДДК (BCD 8421) комбінація: ${bcdResult}`, "tag-success");
-        logToTerminal(`[УСПІХ] Число в ДДК форматі відповідає десятковому: ${hundreds}${tens}${units}`, "tag-highlight");
+        logToTerminal(`[УСПІХ] Перевірка за десятковим значенням: ${hundreds}${tens}${units}`, "tag-highlight");
 
         btnConvert.disabled = false;
     }
