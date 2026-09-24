@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Універсальний перетворювач кодів (Грей, ДДК, Парність)</title>
+    <title>Універсальний перетворювач кодів</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -26,24 +26,25 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 15px;
+            padding: 10px;
         }
 
         .container {
             background-color: var(--card-bg);
             width: 100%;
             max-width: 800px;
-            padding: 20px;
+            padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 12px;
+            overflow: hidden;
         }
 
         h2 {
             text-align: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #222;
         }
 
@@ -53,34 +54,38 @@
             flex-wrap: wrap;
             justify-content: center;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
             background-color: #f8f9fa;
             padding: 12px;
             border-radius: 8px;
             border: 1px solid #e9ecef;
+            width: 100%;
         }
 
         .control-item {
             display: flex;
             align-items: center;
             gap: 6px;
+            width: auto;
         }
 
         .control-item label {
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
+            white-space: nowrap;
         }
 
         .control-item input, .control-item select {
             padding: 7px 10px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             border: 1px solid #ccc;
             border-radius: 6px;
             outline: none;
+            max-width: 100%;
         }
 
         .btn-calc {
-            padding: 8px 18px;
+            padding: 9px 18px;
             font-size: 0.95rem;
             font-weight: bold;
             background-color: #007bff;
@@ -106,22 +111,29 @@
             justify-content: center;
             gap: 4px;
             background-color: #f0f0f0;
-            padding: 10px;
+            padding: 8px;
             border-radius: 8px;
             overflow-x: auto;
+            width: 100%;
         }
 
         .bit-label {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             font-weight: bold;
             color: red;
-            width: 28px;
+            width: 24px;
             text-align: center;
         }
 
         .bit-label.active {
             color: #00aa00;
+        }
+
+        /* Обгортка для таблиці (дозволяє скрол при потребі) */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
         }
 
         /* Таблиця характеристик коду */
@@ -134,7 +146,7 @@
 
         .stats-table th, .stats-table td {
             border: 1px solid #ddd;
-            padding: 6px 10px;
+            padding: 6px 8px;
             text-align: left;
         }
 
@@ -153,14 +165,15 @@
             background-color: var(--term-bg);
             color: #d4d4d4;
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 0.85rem;
-            padding: 12px;
+            font-size: 0.8rem;
+            padding: 10px;
             border-radius: 8px;
-            height: 300px;
+            height: 280px;
             overflow-y: auto;
             white-space: pre-wrap;
             word-break: break-all;
             line-height: 1.4;
+            width: 100%;
         }
 
         /* Кольори для терміналу */
@@ -170,18 +183,48 @@
         .tag-gray { color: #dcdcaa; }
         .tag-error { color: #f44747; }
 
-        @media (max-width: 580px) {
+        /* Адаптивність спеціально для мобільних пристроїв */
+        @media (max-width: 600px) {
+            body {
+                padding: 5px;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
             .controls-group {
                 flex-direction: column;
                 align-items: stretch;
             }
+
+            .control-item {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+            }
+
+            .control-item label {
+                margin-bottom: 2px;
+            }
+
+            .control-item input, .control-item select {
+                width: 100% !important;
+            }
+
+            .btn-calc {
+                width: 100%;
+                margin-top: 5px;
+            }
+
             .bit-label {
                 font-size: 1rem;
-                width: 20px;
+                width: 18px;
             }
+
             .terminal {
                 font-size: 0.75rem;
-                height: 240px;
+                height: 220px;
             }
         }
     </style>
@@ -194,7 +237,7 @@
     <div class="controls-group">
         <div class="control-item">
             <label for="numInput">Число (0-1023):</label>
-            <input type="number" id="numInput" min="0" max="1023" value="573" style="width: 85px;">
+            <input type="number" id="numInput" min="0" max="1023" value="573">
         </div>
 
         <div class="control-item">
@@ -225,7 +268,9 @@
 
     <div id="statsBox" style="display:none;">
         <div class="terminal-header" id="statsHeader">Основні характеристики коду:</div>
-        <table class="stats-table" id="statsTable"></table>
+        <div class="table-wrapper">
+            <table class="stats-table" id="statsTable"></table>
+        </div>
     </div>
 
     <div>
@@ -287,7 +332,6 @@
         return n ^ (n >> 1);
     }
 
-    // ДДК (Лаб 2) характеристики
     function renderBcdStats(num) {
         const strNum = num.toString();
         const numDigits = strNum.length;
@@ -311,7 +355,6 @@
         statsBox.style.display = 'block';
     }
 
-    // Код з перевіркою на парність (Лаб 3) характеристики
     function renderParityStats(k = 10) {
         const r = 1;
         const n = k + r;
@@ -409,13 +452,11 @@
         logToTerminal("\n[ЛАБ №3] КОД З ОДНІЄЮ ПЕРЕВІРКОЮ НА ПАРНІСТЬ:", "tag-info");
         renderParityStats(10);
 
-        // 1. Кодування
         let onesCount = 0;
         for (let char of binStr) {
             if (char === '1') onesCount++;
         }
 
-        // Перевірочний біт p = XOR усіх бітів
         const parityBit = onesCount % 2 === 0 ? 0 : 1;
         const fullCodeStr = binStr + parityBit;
 
@@ -424,9 +465,8 @@
         logToTerminal(`      Обчислення біта парності p = b₀ ⊕ b₁ ⊕ ... ⊕ b₉ ➔ ${parityBit}`);
         logToTerminal(`      Передана комбінація (n=11): ${binStr}[${parityBit}]`, "tag-success");
 
-        await sleep(200);
+        await sleep(150);
 
-        // 2. Симуляція каналу зв'язку
         const errorIndex = parseInt(errorBitSelect.value);
         let receivedCodeArr = fullCodeStr.split('');
         
@@ -442,7 +482,6 @@
         const recBin = receivedCodeStr.substring(0, 10);
         const recParity = parseInt(receivedCodeStr.substring(10, 11));
 
-        // 3. Декодування та перевірка синдрому
         logToTerminal(`   3. Декодування та контроль на приймачі:`, "tag-gray");
         logToTerminal(`      Прийнята комбінація: ${recBin}[${recParity}]`);
 
@@ -451,7 +490,7 @@
             if (char === '1') recOnes++;
         }
         const calcRecParity = recOnes % 2 === 0 ? 0 : 1;
-        const syndrome = recParity ^ calcRecParity; // Синдром S = p' ⊕ p''
+        const syndrome = recParity ^ calcRecParity;
 
         logToTerminal(`      Обчислено p'' для прийнятих даних: ${calcRecParity}`);
         logToTerminal(`      Перевірка синдрому S = p' ⊕ p'' = ${recParity} ⊕ ${calcRecParity} = ${syndrome}`);
@@ -475,7 +514,6 @@
         btnConvert.disabled = true;
         statsBox.style.display = 'none';
 
-        // Скидання панелі бітів
         bitElements.forEach(el => {
             el.textContent = '0';
             el.classList.remove('active');
@@ -486,16 +524,14 @@
         logToTerminal("\n==================================================", "tag-info");
         logToTerminal(`--- РОЗРАХУНОК ДЛЯ ЧИСЛА: ${val} (РЕЖИМ: ${modeSelect.options[modeSelect.selectedIndex].text}) ---`, "tag-highlight");
         
-        // 1. Анімація прямого двійкового коду
         logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
         for (let i = 9; i >= 0; i--) {
-            await sleep(50);
+            await sleep(40);
             bitElements[i].textContent = binStr[i];
             bitElements[i].classList.add('active');
         }
         logToTerminal(`   Результат: ${binStr}`, "tag-success");
 
-        // 2. Виконання обраного режиму
         if (mode === 'gray' || mode === 'all') {
             await runGrayProcess(val, binStr);
         }
