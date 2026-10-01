@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Універсальний перетворювач кодів</title>
+    <title>Універсальний перетворювач кодів (Лаб 1-4)</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -32,7 +32,7 @@
         .container {
             background-color: var(--card-bg);
             width: 100%;
-            max-width: 800px;
+            max-width: 850px;
             padding: 15px;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -130,7 +130,7 @@
             color: #00aa00;
         }
 
-        /* Обгортка для таблиці (дозволяє скрол при потребі) */
+        /* Обгортка для таблиці */
         .table-wrapper {
             width: 100%;
             overflow-x: auto;
@@ -183,56 +183,23 @@
         .tag-gray { color: #dcdcaa; }
         .tag-error { color: #f44747; }
 
-        /* Адаптивність спеціально для мобільних пристроїв */
         @media (max-width: 600px) {
-            body {
-                padding: 5px;
-            }
-
-            .container {
-                padding: 10px;
-            }
-
-            .controls-group {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .control-item {
-                flex-direction: column;
-                align-items: stretch;
-                width: 100%;
-            }
-
-            .control-item label {
-                margin-bottom: 2px;
-            }
-
-            .control-item input, .control-item select {
-                width: 100% !important;
-            }
-
-            .btn-calc {
-                width: 100%;
-                margin-top: 5px;
-            }
-
-            .bit-label {
-                font-size: 1rem;
-                width: 18px;
-            }
-
-            .terminal {
-                font-size: 0.75rem;
-                height: 220px;
-            }
+            body { padding: 5px; }
+            .container { padding: 10px; }
+            .controls-group { flex-direction: column; align-items: stretch; }
+            .control-item { flex-direction: column; align-items: stretch; width: 100%; }
+            .control-item label { margin-bottom: 2px; }
+            .control-item input, .control-item select { width: 100% !important; }
+            .btn-calc { width: 100%; margin-top: 5px; }
+            .bit-label { font-size: 1rem; width: 18px; }
+            .terminal { font-size: 0.75rem; height: 220px; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Перетворювач кодів (Грей / ДДК / Парність)</h2>
+    <h2>Перетворювач кодів (Грей / ДДК / Парність / Інверсний)</h2>
 
     <div class="controls-group">
         <div class="control-item">
@@ -243,10 +210,11 @@
         <div class="control-item">
             <label for="modeSelect">Режим:</label>
             <select id="modeSelect" onchange="toggleErrorSelector()">
-                <option value="all">Повний розрахунок (Усі лабораторії)</option>
+                <option value="all">Повний розрахунок (Лаб №1 - №4)</option>
                 <option value="gray">Лаб №1: Код Грея & Декодування</option>
                 <option value="bcd">Лаб №2: ДДК (BCD 8421) & Характеристики</option>
                 <option value="parity">Лаб №3: Код з перевіркою на парність</option>
+                <option value="inverse">Лаб №4: Інверсний код (Повторення/Інверсія)</option>
             </select>
         </div>
 
@@ -254,10 +222,11 @@
             <label for="errorBitSelect">Помилка в каналі:</label>
             <select id="errorBitSelect">
                 <option value="-1">Без помилок</option>
-                <option value="0">Спотворити біт 0 (MSB)</option>
-                <option value="3">Спотворити біт 3</option>
-                <option value="7">Спотворити біт 7</option>
-                <option value="10">Спотворити біт парності (p)</option>
+                <option value="0">Спотворити біт 0 (MSB info)</option>
+                <option value="3">Спотворити біт 3 (Info)</option>
+                <option value="7">Спотворити біт 7 (Info)</option>
+                <option value="10">Спотворити біт 10 (Check part)</option>
+                <option value="13">Спотворити біт 13 (Check part)</option>
             </select>
         </div>
 
@@ -309,7 +278,7 @@
 
     function toggleErrorSelector() {
         const mode = modeSelect.value;
-        if (mode === 'parity' || mode === 'all') {
+        if (mode === 'parity' || mode === 'inverse' || mode === 'all') {
             errorOptionBox.style.display = 'flex';
         } else {
             errorOptionBox.style.display = 'none';
@@ -377,6 +346,28 @@
         statsBox.style.display = 'block';
     }
 
+    function renderInverseStats(k = 10) {
+        const r = k;
+        const n = k + r;
+        const totalN = Math.pow(2, n);
+        const np = Math.pow(2, k);
+        const relR = 0.5;
+        const codeDist = k >= 4 ? 4 : (k === 3 ? 3 : 2);
+
+        statsHeader.textContent = "Основні характеристики Інверсного коду [За методичкою №4]:";
+        statsTable.innerHTML = `
+            <tr><th>Характеристика</th><th>Формула</th><th>Значення</th></tr>
+            <tr><td>Інформаційних розрядів</td><td><i>k</i></td><td>${k} біт</td></tr>
+            <tr><td>Перевірочних розрядів</td><td><i>r</i> = <i>k</i></td><td>${r} біт</td></tr>
+            <tr><td>Загальна довжина коду</td><td><i>n</i> = 2<i>k</i></td><td>${n} біт</td></tr>
+            <tr><td>Повне число комбінацій</td><td><i>N</i> = 2<sup><i>n</i></sup></td><td>${totalN}</td></tr>
+            <tr><td>Потужність коду (робочі)</td><td><i>N</i><sub>p</sub> = 2<sup><i>k</i></sup></td><td>${np}</td></tr>
+            <tr><td>Мінімальна кодова відстань</td><td><i>d</i></td><td>${codeDist} (для k ≥ 4)</td></tr>
+            <tr><td>Коефіцієнт надлишковості</td><td><i>R</i> = <i>r</i> / <i>n</i></td><td>0.5 (50.00%)</td></tr>
+        `;
+        statsBox.style.display = 'block';
+    }
+
     async function runGrayProcess(val, binStr) {
         const grayVal = numToGray(val);
         const grayStr = grayVal.toString(2).padStart(10, '0');
@@ -387,7 +378,7 @@
 
         let currentDecodedStr = "";
         for (let i = 0; i < grayStr.length; i++) {
-            await sleep(80);
+            await sleep(60);
             let nextBit;
             if (i === 0) {
                 nextBit = grayStr[0];
@@ -440,7 +431,7 @@
             logStep += `Сотні: [${hStr}] Десятки: [${tStr}] Одиниці: [${uStr}]`;
 
             logToTerminal(logStep);
-            await sleep(100);
+            await sleep(80);
         }
 
         const bcdResult = `${hundreds.toString(2).padStart(4, '0')} ${tens.toString(2).padStart(4, '0')} ${units.toString(2).padStart(4, '0')}`;
@@ -465,13 +456,13 @@
         logToTerminal(`      Обчислення біта парності p = b₀ ⊕ b₁ ⊕ ... ⊕ b₉ ➔ ${parityBit}`);
         logToTerminal(`      Передана комбінація (n=11): ${binStr}[${parityBit}]`, "tag-success");
 
-        await sleep(150);
+        await sleep(100);
 
         const errorIndex = parseInt(errorBitSelect.value);
         let receivedCodeArr = fullCodeStr.split('');
         
         logToTerminal(`   2. Передача через канал зв'язку:`, "tag-gray");
-        if (errorIndex >= 0) {
+        if (errorIndex >= 0 && errorIndex <= 10) {
             receivedCodeArr[errorIndex] = receivedCodeArr[errorIndex] === '0' ? '1' : '0';
             logToTerminal(`      [УВАГА] Введено штучну помилку у біт ${errorIndex}!`, "tag-error");
         } else {
@@ -502,6 +493,88 @@
         }
     }
 
+    async function runInverseProcess(val, binStr) {
+        logToTerminal("\n[ЛАБ №4] ІНВЕРСНИЙ КОД (ПОБУДОВА ТА ДЕКОДУВАННЯ):", "tag-info");
+        renderInverseStats(10);
+
+        let onesCount = 0;
+        for (let char of binStr) {
+            if (char === '1') onesCount++;
+        }
+
+        const isEven = (onesCount % 2 === 0);
+        let checkPart = "";
+
+        if (isEven) {
+            checkPart = binStr; // Пряме повторення
+        } else {
+            // Інверсія
+            for (let char of binStr) {
+                checkPart += (char === '0' ? '1' : '0');
+            }
+        }
+
+        logToTerminal(`   1. Кодування на передавачі:`, "tag-gray");
+        logToTerminal(`      Інформаційні біти A (k=10): ${binStr} (Одиниць: ${onesCount} ➔ ${isEven ? 'ПАРНА' : 'НЕПАРНА'})`);
+        logToTerminal(`      Правило: ${isEven ? 'Повторення (B = A)' : 'Інверсія (B = A ⊕ 1)'}`);
+        logToTerminal(`      Перевірна частина B (r=10): ${checkPart}`);
+        
+        const fullInverseCode = binStr + checkPart;
+        logToTerminal(`      Повний інверсний код (n=20): [${binStr}] [${checkPart}]`, "tag-success");
+
+        await sleep(120);
+
+        const errorIndex = parseInt(errorBitSelect.value);
+        let recArr = fullInverseCode.split('');
+
+        logToTerminal(`   2. Передача через канал зв'язку:`, "tag-gray");
+        if (errorIndex >= 0 && errorIndex < 20) {
+            recArr[errorIndex] = recArr[errorIndex] === '0' ? '1' : '0';
+            logToTerminal(`      [УВАГА] Введено штучну помилку у біт ${errorIndex}!`, "tag-error");
+        } else {
+            logToTerminal(`      Передача без спотворень (чистий канал).`, "tag-success");
+        }
+
+        const recInfoPart = recArr.slice(0, 10).join('');
+        const recCheckPart = recArr.slice(10, 20).join('');
+
+        logToTerminal(`   3. Декодування та контроль на приймачі:`, "tag-gray");
+        logToTerminal(`      Прийнята інформаційна частина A': ${recInfoPart}`);
+        logToTerminal(`      Прийнята перевірна частина B':    ${recCheckPart}`);
+
+        let recOnes = 0;
+        for (let char of recInfoPart) {
+            if (char === '1') recOnes++;
+        }
+        const recIsEven = (recOnes % 2 === 0);
+        
+        let expectedCheckPart = "";
+        if (recIsEven) {
+            expectedCheckPart = recInfoPart;
+        } else {
+            for (let char of recInfoPart) expectedCheckPart += (char === '0' ? '1' : '0');
+        }
+
+        logToTerminal(`      Очікувана перевірна частина B'':  ${expectedCheckPart} (паритет A' ➔ ${recIsEven ? 'ПАРНИЙ' : 'НЕПАРНИЙ'})`);
+
+        let errorFound = false;
+        let syndromeStr = "";
+        for (let i = 0; i < 10; i++) {
+            const diff = (parseInt(recCheckPart[i]) ^ parseInt(expectedCheckPart[i]));
+            syndromeStr += diff;
+            if (diff !== 0) errorFound = true;
+        }
+
+        logToTerminal(`      Вектор синдрому S = B' ⊕ B'':     ${syndromeStr}`);
+
+        if (!errorFound) {
+            logToTerminal(`   [РЕЗУЛЬТАТ] S = 0 ➔ Помилок не виявлено (інверсний код коректний).`, "tag-success");
+            logToTerminal(`   [ДЕКОДОВАНО] Прийняте число: ${parseInt(recInfoPart, 2)}`, "tag-highlight");
+        } else {
+            logToTerminal(`   [ПОМИЛКА] S ≠ 0 ➔ Виявлено спотворення даних в каналі!`, "tag-error");
+        }
+    }
+
     async function startConversion() {
         const val = parseInt(numInput.value);
         const mode = modeSelect.value;
@@ -526,7 +599,7 @@
         
         logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
         for (let i = 9; i >= 0; i--) {
-            await sleep(40);
+            await sleep(30);
             bitElements[i].textContent = binStr[i];
             bitElements[i].classList.add('active');
         }
@@ -542,6 +615,10 @@
 
         if (mode === 'parity' || mode === 'all') {
             await runParityProcess(val, binStr);
+        }
+
+        if (mode === 'inverse' || mode === 'all') {
+            await runInverseProcess(val, binStr);
         }
 
         btnConvert.disabled = false;
