@@ -92,11 +92,15 @@
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: background 0.2s, transform 0.1s;
         }
 
         .btn-calc:hover {
             background-color: #0056b3;
+        }
+
+        .btn-calc:active {
+            transform: scale(0.98);
         }
 
         .btn-calc:disabled {
@@ -104,12 +108,13 @@
             cursor: not-allowed;
         }
 
+        /* Анімована панель двійкового коду */
         .bits-container {
             display: flex;
             justify-content: center;
-            gap: 4px;
+            gap: 6px;
             background-color: #f0f0f0;
-            padding: 8px;
+            padding: 10px;
             border-radius: 8px;
             overflow-x: auto;
             width: 100%;
@@ -117,15 +122,40 @@
 
         .bit-label {
             font-family: 'Consolas', 'Courier New', monospace;
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: bold;
-            color: red;
-            width: 24px;
-            text-align: center;
+            color: #dc3545;
+            width: 28px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            transition: color 0.4s ease, background-color 0.4s ease, border-color 0.4s ease, transform 0.3s ease;
         }
 
+        /* Клас активного (заповненого) біта з анімацією випливання */
         .bit-label.active {
-            color: #00aa00;
+            color: #28a745;
+            border-color: #28a745;
+            background-color: #eafaf1;
+            animation: bitPop 0.35s ease-out;
+        }
+
+        @keyframes bitPop {
+            0% {
+                transform: scale(0.7);
+                opacity: 0.3;
+            }
+            50% {
+                transform: scale(1.15);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
         .table-wrapper {
@@ -185,7 +215,7 @@
             .control-item label { margin-bottom: 2px; }
             .control-item input, .control-item select { width: 100% !important; }
             .btn-calc { width: 100%; margin-top: 5px; }
-            .bit-label { font-size: 1rem; width: 18px; }
+            .bit-label { font-size: 1.1rem; width: 22px; height: 28px; }
             .terminal { font-size: 0.75rem; height: 220px; }
         }
     </style>
@@ -410,7 +440,7 @@
 
         let currentDecodedStr = "";
         for (let i = 0; i < grayStr.length; i++) {
-            await sleep(30);
+            await sleep(120);
             let nextBit;
             if (i === 0) {
                 nextBit = grayStr[0];
@@ -463,7 +493,7 @@
             logStep += `Сотні: [${hStr}] Десятки: [${tStr}] Одиниці: [${uStr}]`;
 
             logToTerminal(logStep);
-            await sleep(40);
+            await sleep(150);
         }
 
         const bcdResult = `${hundreds.toString(2).padStart(4, '0')} ${tens.toString(2).padStart(4, '0')} ${units.toString(2).padStart(4, '0')}`;
@@ -488,7 +518,7 @@
         logToTerminal(`      Обчислення біта парності p = b₀ ⊕ b₁ ⊕ ... ⊕ b₉ ➔ ${parityBit}`);
         logToTerminal(`      Передана комбінація (n=11): ${binStr}[${parityBit}]`, "tag-success");
 
-        await sleep(50);
+        await sleep(200);
 
         const errorIndex = parseInt(errorBitSelect.value);
         let receivedCodeArr = fullCodeStr.split('');
@@ -553,7 +583,7 @@
         const fullInverseCode = binStr + checkPart;
         logToTerminal(`      Повний інверсний код (n=20): [${binStr}] [${checkPart}]`, "tag-success");
 
-        await sleep(50);
+        await sleep(200);
 
         const errorIndex = parseInt(errorBitSelect.value);
         let recArr = fullInverseCode.split('');
@@ -627,7 +657,7 @@
         logToTerminal(`      Заміна за правилом (0➔01, 1➔10): ${logPairs.join(', ')}`);
         logToTerminal(`      Передана кореляційна послідовність (n=20): ${fullCorrStr}`, "tag-success");
 
-        await sleep(50);
+        await sleep(200);
 
         const errorIndex = parseInt(errorBitSelect.value);
         let recArr = fullCorrStr.split('');
@@ -672,9 +702,6 @@
         logToTerminal("\n[ЛАБ №6] КОД ХЕММІНГА (ВИПРАВЛЕННЯ ПОМИЛОК):", "tag-info");
         renderHammingStats(10, 4);
 
-        // Будуємо сітку на 14 біт (1-based index)
-        // Pos: 1, 2, 4, 8 - parity біти p1, p2, p4, p8
-        // Pos: 3, 5, 6, 7, 9, 10, 11, 12, 13, 14 - info біти d1..d10
         let hCode = new Array(15).fill(0);
         const dataBits = binStr.split('').map(Number);
 
@@ -683,7 +710,6 @@
             hCode[dataPositions[i]] = dataBits[i];
         }
 
-        // Обчислення p1, p2, p4, p8
         hCode[1] = hCode[3] ^ hCode[5] ^ hCode[7] ^ hCode[9] ^ hCode[11] ^ hCode[13];
         hCode[2] = hCode[3] ^ hCode[6] ^ hCode[7] ^ hCode[10] ^ hCode[11] ^ hCode[14];
         hCode[4] = hCode[5] ^ hCode[6] ^ hCode[7] ^ hCode[12] ^ hCode[13] ^ hCode[14];
@@ -696,9 +722,9 @@
         logToTerminal(`      Розраховані контрольні біти: p1=${hCode[1]}, p2=${hCode[2]}, p4=${hCode[4]}, p8=${hCode[8]}`);
         logToTerminal(`      Переданий код Хеммінга (1..14): ${fullHammingStr}`, "tag-success");
 
-        await sleep(50);
+        await sleep(200);
 
-        const errorIndex = parseInt(errorBitSelect.value); // 1-based index
+        const errorIndex = parseInt(errorBitSelect.value);
         let recHCode = [...hCode];
 
         logToTerminal(`   2. Передача через канал зв'язку:`, "tag-gray");
@@ -761,8 +787,10 @@
         logToTerminal(`--- РОЗРАХУНОК ДЛЯ ЧИСЛА: ${val} (РЕЖИМ: ${modeSelect.options[modeSelect.selectedIndex].text}) ---`, "tag-highlight");
         
         logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
-        for (let i = 9; i >= 0; i--) {
-            await sleep(15);
+        
+        // Плавна та красиво затримана анімація появи двійкових бітів (по 300 мс на біт)
+        for (let i = 0; i < 10; i++) {
+            await sleep(300);
             bitElements[i].textContent = binStr[i];
             bitElements[i].classList.add('active');
         }
