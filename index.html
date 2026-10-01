@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Універсальний перетворювач кодів (Лаб 1-5)</title>
+    <title>Універсальний перетворювач кодів (Лаб 1-6)</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -48,7 +48,6 @@
             color: #222;
         }
 
-        /* Панель введення та налаштувань */
         .controls-group {
             display: flex;
             flex-wrap: wrap;
@@ -105,7 +104,6 @@
             cursor: not-allowed;
         }
 
-        /* Панель двійкового коду */
         .bits-container {
             display: flex;
             justify-content: center;
@@ -130,13 +128,11 @@
             color: #00aa00;
         }
 
-        /* Обгортка для таблиці */
         .table-wrapper {
             width: 100%;
             overflow-x: auto;
         }
 
-        /* Таблиця характеристик коду */
         .stats-table {
             width: 100%;
             border-collapse: collapse;
@@ -154,7 +150,6 @@
             background-color: #e9ecef;
         }
 
-        /* Термінал */
         .terminal-header {
             font-size: 0.85rem;
             font-weight: bold;
@@ -176,7 +171,6 @@
             width: 100%;
         }
 
-        /* Кольори для терміналу */
         .tag-info { color: #569cd6; }
         .tag-success { color: #4ec9b0; }
         .tag-highlight { color: #ce9178; font-weight: bold; }
@@ -199,7 +193,7 @@
 <body>
 
 <div class="container">
-    <h2>Перетворювач кодів (Лаб №1 - №5)</h2>
+    <h2>Перетворювач кодів (Лаб №1 - №6)</h2>
 
     <div class="controls-group">
         <div class="control-item">
@@ -210,12 +204,13 @@
         <div class="control-item">
             <label for="modeSelect">Режим:</label>
             <select id="modeSelect" onchange="toggleErrorSelector()">
-                <option value="all">Повний розрахунок (Лаб №1 - №5)</option>
+                <option value="all">Повний розрахунок (Лаб №1 - №6)</option>
                 <option value="gray">Лаб №1: Код Грея & Декодування</option>
                 <option value="bcd">Лаб №2: ДДК (BCD 8421) & Характеристики</option>
                 <option value="parity">Лаб №3: Код з перевіркою на парність</option>
                 <option value="inverse">Лаб №4: Інверсний код</option>
                 <option value="corr">Лаб №5: Кореляційний код (Манчестер)</option>
+                <option value="hamming">Лаб №6: Код Хеммінга (Виправлення помилок)</option>
             </select>
         </div>
 
@@ -223,11 +218,12 @@
             <label for="errorBitSelect">Помилка в каналі:</label>
             <select id="errorBitSelect">
                 <option value="-1">Без помилок</option>
-                <option value="0">Спотворити біт 0</option>
-                <option value="3">Спотворити біт 3</option>
-                <option value="7">Спотворити біт 7</option>
-                <option value="10">Спотворити біт 10</option>
-                <option value="13">Спотворити біт 13</option>
+                <option value="1">Спотворити біт 1 (p1)</option>
+                <option value="3">Спотворити біт 3 (d1)</option>
+                <option value="5" selected>Спотворити біт 5 (d2 - за завданням)</option>
+                <option value="7">Спотворити біт 7 (d4)</option>
+                <option value="10">Спотворити біт 10 (d6)</option>
+                <option value="14">Спотворити біт 14 (d10)</option>
             </select>
         </div>
 
@@ -279,7 +275,7 @@
 
     function toggleErrorSelector() {
         const mode = modeSelect.value;
-        if (mode === 'parity' || mode === 'inverse' || mode === 'corr' || mode === 'all') {
+        if (mode === 'parity' || mode === 'inverse' || mode === 'corr' || mode === 'hamming' || mode === 'all') {
             errorOptionBox.style.display = 'flex';
         } else {
             errorOptionBox.style.display = 'none';
@@ -375,12 +371,31 @@
         statsTable.innerHTML = `
             <tr><th>Характеристика</th><th>Формула</th><th>Значення</th></tr>
             <tr><td>Інформаційних розрядів</td><td><i>k</i></td><td>${k} біт</td></tr>
-            <tr><td>Перевірочних розрядів</td><td><i>r</i> = <i>k</i></td><td>${r} біт (дублікати в такті)</td></tr>
+            <tr><td>Перевірочних розрядів</td><td><i>r</i> = <i>k</i></td><td>${r} біт</td></tr>
             <tr><td>Загальна довжина коду</td><td><i>n</i> = 2<i>k</i></td><td>${n} біт</td></tr>
             <tr><td>Повне число комбінацій</td><td><i>N</i> = 2<sup><i>n</i></sup></td><td>${totalN}</td></tr>
             <tr><td>Потужність коду (робочі)</td><td><i>N</i><sub>p</sub> = 2<sup><i>k</i></sup></td><td>${np}</td></tr>
-            <tr><td>Правило кодування</td><td>0 ➔ 01, 1 ➔ 10</td><td>Фазовий перехід в центрі біта</td></tr>
             <tr><td>Надлишковість коду</td><td><i>R</i> = 1 - <i>k</i> / (2<i>k</i>)</td><td>0.5 (50.00%)</td></tr>
+        `;
+        statsBox.style.display = 'block';
+    }
+
+    function renderHammingStats(k = 10, r = 4) {
+        const n = k + r;
+        const totalN = Math.pow(2, n);
+        const np = Math.pow(2, k);
+        const relR = (r / n).toFixed(4);
+
+        statsHeader.textContent = "Основні характеристики коду Хеммінга [За методичкою №6]:";
+        statsTable.innerHTML = `
+            <tr><th>Характеристика</th><th>Формула</th><th>Значення</th></tr>
+            <tr><td>Інформаційних розрядів</td><td><i>k</i></td><td>${k} біт</td></tr>
+            <tr><td>Перевірочних розрядів</td><td><i>r</i> (2<sup><i>r</i></sup> ≥ <i>k</i> + <i>r</i> + 1)</td><td>${r} біт (позиції 1, 2, 4, 8)</td></tr>
+            <tr><td>Загальна довжина коду</td><td><i>n</i> = <i>k</i> + <i>r</i></td><td>${n} біт</td></tr>
+            <tr><td>Повне число комбінацій</td><td><i>N</i> = 2<sup><i>n</i></sup></td><td>${totalN}</td></tr>
+            <tr><td>Потужність коду (робочі)</td><td><i>N</i><sub>p</sub> = 2<sup><i>k</i></sup></td><td>${np}</td></tr>
+            <tr><td>Мінімальна кодова відстань</td><td><i>d</i><sub>min</sub></td><td>3 (виправляє 1-кратні помилки)</td></tr>
+            <tr><td>Надлишковість коду</td><td><i>R</i> = <i>r</i> / <i>n</i></td><td>${relR} (${(relR * 100).toFixed(2)}%)</td></tr>
         `;
         statsBox.style.display = 'block';
     }
@@ -395,7 +410,7 @@
 
         let currentDecodedStr = "";
         for (let i = 0; i < grayStr.length; i++) {
-            await sleep(40);
+            await sleep(30);
             let nextBit;
             if (i === 0) {
                 nextBit = grayStr[0];
@@ -448,7 +463,7 @@
             logStep += `Сотні: [${hStr}] Десятки: [${tStr}] Одиниці: [${uStr}]`;
 
             logToTerminal(logStep);
-            await sleep(60);
+            await sleep(40);
         }
 
         const bcdResult = `${hundreds.toString(2).padStart(4, '0')} ${tens.toString(2).padStart(4, '0')} ${units.toString(2).padStart(4, '0')}`;
@@ -473,7 +488,7 @@
         logToTerminal(`      Обчислення біта парності p = b₀ ⊕ b₁ ⊕ ... ⊕ b₉ ➔ ${parityBit}`);
         logToTerminal(`      Передана комбінація (n=11): ${binStr}[${parityBit}]`, "tag-success");
 
-        await sleep(80);
+        await sleep(50);
 
         const errorIndex = parseInt(errorBitSelect.value);
         let receivedCodeArr = fullCodeStr.split('');
@@ -538,7 +553,7 @@
         const fullInverseCode = binStr + checkPart;
         logToTerminal(`      Повний інверсний код (n=20): [${binStr}] [${checkPart}]`, "tag-success");
 
-        await sleep(80);
+        await sleep(50);
 
         const errorIndex = parseInt(errorBitSelect.value);
         let recArr = fullInverseCode.split('');
@@ -612,7 +627,7 @@
         logToTerminal(`      Заміна за правилом (0➔01, 1➔10): ${logPairs.join(', ')}`);
         logToTerminal(`      Передана кореляційна послідовність (n=20): ${fullCorrStr}`, "tag-success");
 
-        await sleep(80);
+        await sleep(50);
 
         const errorIndex = parseInt(errorBitSelect.value);
         let recArr = fullCorrStr.split('');
@@ -636,10 +651,8 @@
             const pair = recCorrStr.substring(i * 2, i * 2 + 2);
             if (pair === "01") {
                 decodedBin += "0";
-                logToTerminal(`      • Такт ${i + 1} [Пара ${pair}]: Норма ➔ Біт 0`);
             } else if (pair === "10") {
                 decodedBin += "1";
-                logToTerminal(`      • Такт ${i + 1} [Пара ${pair}]: Норма ➔ Біт 1`);
             } else {
                 decodedBin += "?";
                 errorFound = true;
@@ -653,6 +666,76 @@
         } else {
             logToTerminal(`   [ПОМИЛКА] Виявлено порушення структури Манчестерського коду у такті!`, "tag-error");
         }
+    }
+
+    async function runHammingProcess(val, binStr) {
+        logToTerminal("\n[ЛАБ №6] КОД ХЕММІНГА (ВИПРАВЛЕННЯ ПОМИЛОК):", "tag-info");
+        renderHammingStats(10, 4);
+
+        // Будуємо сітку на 14 біт (1-based index)
+        // Pos: 1, 2, 4, 8 - parity біти p1, p2, p4, p8
+        // Pos: 3, 5, 6, 7, 9, 10, 11, 12, 13, 14 - info біти d1..d10
+        let hCode = new Array(15).fill(0);
+        const dataBits = binStr.split('').map(Number);
+
+        const dataPositions = [3, 5, 6, 7, 9, 10, 11, 12, 13, 14];
+        for (let i = 0; i < 10; i++) {
+            hCode[dataPositions[i]] = dataBits[i];
+        }
+
+        // Обчислення p1, p2, p4, p8
+        hCode[1] = hCode[3] ^ hCode[5] ^ hCode[7] ^ hCode[9] ^ hCode[11] ^ hCode[13];
+        hCode[2] = hCode[3] ^ hCode[6] ^ hCode[7] ^ hCode[10] ^ hCode[11] ^ hCode[14];
+        hCode[4] = hCode[5] ^ hCode[6] ^ hCode[7] ^ hCode[12] ^ hCode[13] ^ hCode[14];
+        hCode[8] = hCode[9] ^ hCode[10] ^ hCode[11] ^ hCode[12] ^ hCode[13] ^ hCode[14];
+
+        const fullHammingStr = hCode.slice(1, 15).join('');
+
+        logToTerminal(`   1. Кодування на передавачі (n=14, k=10, r=4):`, "tag-gray");
+        logToTerminal(`      Інформаційні біти: ${binStr}`);
+        logToTerminal(`      Розраховані контрольні біти: p1=${hCode[1]}, p2=${hCode[2]}, p4=${hCode[4]}, p8=${hCode[8]}`);
+        logToTerminal(`      Переданий код Хеммінга (1..14): ${fullHammingStr}`, "tag-success");
+
+        await sleep(50);
+
+        const errorIndex = parseInt(errorBitSelect.value); // 1-based index
+        let recHCode = [...hCode];
+
+        logToTerminal(`   2. Передача через канал зв'язку:`, "tag-gray");
+        if (errorIndex >= 1 && errorIndex <= 14) {
+            recHCode[errorIndex] = recHCode[errorIndex] === 0 ? 1 : 0;
+            logToTerminal(`      [УВАГА] Введено штучну помилку в біт на позиції ${errorIndex}!`, "tag-error");
+        } else {
+            logToTerminal(`      Передача без спотворень (чистий канал).`, "tag-success");
+        }
+
+        logToTerminal(`   3. Декодування та обчислення синдрому на приймачі:`, "tag-gray");
+        logToTerminal(`      Прийнятий вектор (1..14): ${recHCode.slice(1, 15).join('')}`);
+
+        const s1 = recHCode[1] ^ recHCode[3] ^ recHCode[5] ^ recHCode[7] ^ recHCode[9] ^ recHCode[11] ^ recHCode[13];
+        const s2 = recHCode[2] ^ recHCode[3] ^ recHCode[6] ^ recHCode[7] ^ recHCode[10] ^ recHCode[11] ^ recHCode[14];
+        const s4 = recHCode[4] ^ recHCode[5] ^ recHCode[6] ^ recHCode[7] ^ recHCode[12] ^ recHCode[13] ^ recHCode[14];
+        const s8 = recHCode[8] ^ recHCode[9] ^ recHCode[10] ^ recHCode[11] ^ recHCode[12] ^ recHCode[13] ^ recHCode[14];
+
+        const syndromeVal = (s8 << 3) | (s4 << 2) | (s2 << 1) | s1;
+        logToTerminal(`      Вектор синдрому (s8 s4 s2 s1): (${s8} ${s4} ${s2} ${s1})_2 ➔ Синдром S = ${syndromeVal}`);
+
+        if (syndromeVal === 0) {
+            logToTerminal(`   [РЕЗУЛЬТАТ] S = 0 ➔ Помилок не виявлено!`, "tag-success");
+        } else {
+            logToTerminal(`   [ПОМИЛКА ВИЯВЛЕНА] Синдром S = ${syndromeVal} вказує на спотворення біта №${syndromeVal}!`, "tag-error");
+            logToTerminal(`   [АВТО-ВИПРАВЛЕННЯ] Інвертуємо біт №${syndromeVal}: ${recHCode[syndromeVal]} ➔ ${recHCode[syndromeVal] ^ 1}`, "tag-highlight");
+            recHCode[syndromeVal] ^= 1;
+        }
+
+        let recoveredDataBits = [];
+        for (let pos of dataPositions) {
+            recoveredDataBits.push(recHCode[pos]);
+        }
+        const recoveredBinStr = recoveredDataBits.join('');
+        const recoveredVal = parseInt(recoveredBinStr, 2);
+
+        logToTerminal(`   [ВІДНОВЛЕНО] Інформаційні біти: ${recoveredBinStr} (Десятичне: ${recoveredVal})`, "tag-success");
     }
 
     async function startConversion() {
@@ -679,31 +762,18 @@
         
         logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
         for (let i = 9; i >= 0; i--) {
-            await sleep(20);
+            await sleep(15);
             bitElements[i].textContent = binStr[i];
             bitElements[i].classList.add('active');
         }
         logToTerminal(`   Результат: ${binStr}`, "tag-success");
 
-        if (mode === 'gray' || mode === 'all') {
-            await runGrayProcess(val, binStr);
-        }
-
-        if (mode === 'bcd' || mode === 'all') {
-            await runBcdProcess(val, binStr);
-        }
-
-        if (mode === 'parity' || mode === 'all') {
-            await runParityProcess(val, binStr);
-        }
-
-        if (mode === 'inverse' || mode === 'all') {
-            await runInverseProcess(val, binStr);
-        }
-
-        if (mode === 'corr' || mode === 'all') {
-            await runCorrProcess(val, binStr);
-        }
+        if (mode === 'gray' || mode === 'all') await runGrayProcess(val, binStr);
+        if (mode === 'bcd' || mode === 'all') await runBcdProcess(val, binStr);
+        if (mode === 'parity' || mode === 'all') await runParityProcess(val, binStr);
+        if (mode === 'inverse' || mode === 'all') await runInverseProcess(val, binStr);
+        if (mode === 'corr' || mode === 'all') await runCorrProcess(val, binStr);
+        if (mode === 'hamming' || mode === 'all') await runHammingProcess(val, binStr);
 
         btnConvert.disabled = false;
     }
