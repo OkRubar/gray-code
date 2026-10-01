@@ -789,7 +789,7 @@
         logToTerminal("[1] Прямий двійковий код (10 біт):", "tag-info");
         
         // Плавна та красиво затримана анімація появи двійкових бітів (по 300 мс на біт)
-        for (let i = 0; i < 10; i++) {
+        for (let i = 9; i >= 0; i--) {
             await sleep(300);
             bitElements[i].textContent = binStr[i];
             bitElements[i].classList.add('active');
